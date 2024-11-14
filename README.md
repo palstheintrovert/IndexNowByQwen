@@ -34,7 +34,7 @@
     <img src="images/logo.png" alt="Logo" width="80" height="80">
   </a>
 
-  <h3 align="center">Best-README-Template</h3>
+  <h3 align="center">IndexNow 2.5</h3>
 
   <p align="center">
     An awesome IndexNow By Qwen 2.5 to jumpstart your projects!
