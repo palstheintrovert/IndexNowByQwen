@@ -1,0 +1,64 @@
+name: IndexNow Submission
+
+on:
+  schedule:
+    - cron: '0 * * * *' # Runs every hour
+
+jobs:
+  submit-to-indexnow:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '14'
+
+    - name: Install dependencies
+      run: npm install axios
+
+    - name: Submit URLs to IndexNow
+      env:
+        INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
+        BLOGGER_SITES: ${{ secrets.BLOGGER_SITES }}
+      run: |
+        node -e "
+        const axios = require('axios');
+        const sites = process.env.BLOGGER_SITES.split(',');
+        const apiKey = process.env.INDEXNOW_KEY;
+
+        async function submitToIndexNow(url) {
+          try {
+            const response = await axios.post('https://api.indexnow.org/indexnow', {
+              host: new URL(url).hostname,
+              key: apiKey,
+              urlList: [url]
+            });
+            console.log(`Submitted ${url} to IndexNow:`, response.data);
+          } catch (error) {
+            console.error(`Error submitting ${url} to IndexNow:`, error.message);
+          }
+        }
+
+        sites.forEach(async (site) => {
+          // Fetch the latest posts from the Blogger site
+          const feedResponse = await axios.get(`${site}/feeds/posts/default?alt=json`);
+          const posts = feedResponse.data.feed.entry;
+
+          // Check each post for a last update time
+          posts.forEach(async (post) => {
+            const updated = new Date(post.updated.$t);
+            const now = new Date();
+            const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+            // If the post was updated in the last hour, submit it to IndexNow
+            if (updated >= oneHourAgo) {
+              const postUrl = post.link.find(link => link.rel === 'alternate').href;
+              await submitToIndexNow(postUrl);
+            }
+          });
+        });
+        "
